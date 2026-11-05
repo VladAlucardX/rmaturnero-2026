@@ -11,7 +11,7 @@ module.exports = async function mesasRoutes (fastify) {
     preHandler: [fastify.authenticate]
   }, async (request, reply) => {
     const { rows } = await fastify.db.query(
-      `SELECT m.id, m.numero, m.nombre, m.estado,
+      `SELECT m.id, m.numero, m.nombre, m.estado, m.motivo_pausa, m.pausado_en,
               u.id AS operador_id, u.nombre_completo AS operador_nombre,
               -- Turno actual en esta mesa
               t.numero AS turno_actual,
@@ -64,7 +64,7 @@ module.exports = async function mesasRoutes (fastify) {
 
       const { rows: [mesa] } = await fastify.db.query(
         `INSERT INTO mesas (numero, nombre, estado) VALUES ($1, $2, $3)
-         RETURNING id, numero, nombre, estado, operador_id`,
+         RETURNING id, numero, nombre, estado, operador_id, motivo_pausa, pausado_en`,
         [numero, nombre, estado]
       )
 
@@ -160,9 +160,11 @@ module.exports = async function mesasRoutes (fastify) {
       }
 
       const { rows: [mesa] } = await fastify.db.query(
-        `UPDATE mesas SET operador_id = $1::bigint, estado = CASE WHEN $1::bigint IS NOT NULL THEN 'activa' ELSE 'inactiva' END
+        `UPDATE mesas SET operador_id = $1::bigint, estado = CASE WHEN $1::bigint IS NOT NULL THEN 'activa' ELSE 'inactiva' END,
+                   motivo_pausa = CASE WHEN $1::bigint IS NOT NULL THEN NULL ELSE motivo_pausa END,
+                   pausado_en = CASE WHEN $1::bigint IS NOT NULL THEN NULL ELSE pausado_en END
          WHERE id = $2
-         RETURNING id, numero, nombre, estado, operador_id`,
+         RETURNING id, numero, nombre, estado, operador_id, motivo_pausa, pausado_en`,
         [operador_id, mesaId]
       )
 
@@ -230,7 +232,8 @@ module.exports = async function mesasRoutes (fastify) {
         type: 'object',
         required: ['estado'],
         properties: {
-          estado: { type: 'string', enum: ['activa', 'pausada', 'inactiva'] }
+          estado: { type: 'string', enum: ['activa', 'pausada', 'inactiva'] },
+          motivo: { type: 'string', maxLength: 100 }
         }
       }
     }
@@ -284,14 +287,38 @@ module.exports = async function mesasRoutes (fastify) {
       }
     }
 
-    // Al inactivar: liberar operador asignado. Al pausar: mantener asignación.
-    const updateQuery = estado === 'inactiva'
-      ? `UPDATE mesas SET estado = $1, operador_id = NULL WHERE id = $2
-         RETURNING id, numero, nombre, estado, operador_id`
-      : `UPDATE mesas SET estado = $1 WHERE id = $2
-         RETURNING id, numero, nombre, estado, operador_id`
+    // Al inactivar: liberar operador asignado y limpiar motivo. Al pausar: registrar motivo y tiempo.
+    let updateQuery = ''
+    let updateParams = []
+    if (estado === 'pausada') {
+      const motivoFinal = (request.body.motivo && request.body.motivo.trim()) || 'Descanso programado / Almuerzo'
+      updateQuery = `UPDATE mesas
+                     SET estado = 'pausada',
+                         motivo_pausa = $1,
+                         pausado_en = COALESCE(pausado_en, NOW())
+                     WHERE id = $2
+                     RETURNING id, numero, nombre, estado, operador_id, motivo_pausa, pausado_en`
+      updateParams = [motivoFinal, mesaId]
+    } else if (estado === 'activa') {
+      updateQuery = `UPDATE mesas
+                     SET estado = 'activa',
+                         motivo_pausa = NULL,
+                         pausado_en = NULL
+                     WHERE id = $1
+                     RETURNING id, numero, nombre, estado, operador_id, motivo_pausa, pausado_en`
+      updateParams = [mesaId]
+    } else {
+      updateQuery = `UPDATE mesas
+                     SET estado = 'inactiva',
+                         operador_id = NULL,
+                         motivo_pausa = NULL,
+                         pausado_en = NULL
+                     WHERE id = $1
+                     RETURNING id, numero, nombre, estado, operador_id, motivo_pausa, pausado_en`
+      updateParams = [mesaId]
+    }
 
-    const { rows: [mesa] } = await fastify.db.query(updateQuery, [estado, mesaId])
+    const { rows: [mesa] } = await fastify.db.query(updateQuery, updateParams)
 
     if (!mesa) return reply.status(404).send({ error: 'Mesa no encontrada' })
 
@@ -299,10 +326,13 @@ module.exports = async function mesasRoutes (fastify) {
     setImmediate(async () => {
       try {
         const accionLog = estado === 'activa' ? 'MESA_ACTIVADA' : estado === 'pausada' ? 'MESA_PAUSADA' : 'MESA_INACTIVADA'
+        const metadataJson = estado === 'pausada'
+          ? JSON.stringify({ motivo: mesa.motivo_pausa, pausado_en: mesa.pausado_en })
+          : null
         await fastify.db.query(
-          `INSERT INTO audit_log (mesa_id, operador_id, accion, ip_origen)
-           VALUES ($1, $2, $3, $4)`,
-          [mesaId, request.user.id, accionLog, request.ip]
+          `INSERT INTO audit_log (mesa_id, operador_id, accion, ip_origen, metadata_json)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [mesaId, request.user.id, accionLog, request.ip, metadataJson]
         )
 
         // Notificar al panel del operador en esa mesa para que reaccione en tiempo real
@@ -375,7 +405,7 @@ module.exports = async function mesasRoutes (fastify) {
       vals.push(mesaId)
       const { rows: [mesa] } = await fastify.db.query(
         `UPDATE mesas SET ${campos.join(', ')} WHERE id = $${idx}
-         RETURNING id, numero, nombre, estado, operador_id`,
+         RETURNING id, numero, nombre, estado, operador_id, motivo_pausa, pausado_en`,
         vals
       )
 

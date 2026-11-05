@@ -79,6 +79,8 @@ CREATE TABLE mesas (
                        CONSTRAINT ck_mesas_estado
                            CHECK (estado IN ('activa', 'pausada', 'inactiva', 'eliminada')),
     operador_id    BIGINT       REFERENCES usuarios(id) ON DELETE SET NULL,
+    motivo_pausa   VARCHAR(100) DEFAULT NULL,
+    pausado_en     TIMESTAMPTZ  DEFAULT NULL,
     creado_en      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     eliminado_en   TIMESTAMPTZ  DEFAULT NULL

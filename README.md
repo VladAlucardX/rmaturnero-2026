@@ -8,20 +8,22 @@ Opera de forma 100% autónoma en redes locales (LAN / Wi-Fi de campus) sin depen
 
 ## Índice
 
-1. [Problemas Críticos que Resuelve](#-problemas-críticos-que-resuelve)
-2. [Arquitectura del Sistema](#-arquitectura-del-sistema)
-3. [Módulos del Sistema](#-módulos-del-sistema)
-4. [Flujo Operativo: Las 3 Modalidades de Emisión](#-flujo-operativo-las-3-modalidades-de-emisión)
-5. [Guía de Instalación y Despliegue](#-guía-de-instalación-y-despliegue)
+1. [Problemas Críticos que Resuelve](#problemas-críticos-que-resuelve)
+2. [Arquitectura del Sistema](#arquitectura-del-sistema)
+3. [Módulos del Sistema](#módulos-del-sistema)
+4. [Flujo Operativo: Las 3 Modalidades de Emisión](#flujo-operativo-las-3-modalidades-de-emisión)
+5. [Guía de Instalación y Despliegue](#guía-de-instalación-y-despliegue)
    - [A. Servidor de Producción / Linux](#a-servidor-de-producción--linux-recomendado-con-docker)
    - [B. Servidor Central en Windows (Paso a Paso con IP Fija y LAN)](#b-servidor-central-en-windows-guía-paso-a-paso-para-red-local)
    - [C. Modo Desarrollo (Hot-Reload)](#c-modo-desarrollo-hot-reload-con-iniciar_devbat)
-6. [Configuración desde el Panel de Administración (24 Parámetros)](#-configuración-desde-el-panel-de-administración)
-7. [Referencia de Comandos y Ejecutables](#-referencia-de-comandos-y-ejecutables)
+6. [Configuración desde el Panel de Administración (24 Parámetros)](#configuración-desde-el-panel-de-administración)
+7. [Actualización y Mantenimiento de la Base de Datos](#actualización-y-mantenimiento-de-la-base-de-datos)
+8. [Referencia de Comandos y Ejecutables](#referencia-de-comandos-y-ejecutables)
+9. [Credenciales de Acceso Iniciales (Seed)](#credenciales-de-acceso-iniciales-seed)
 
 ---
 
-## ⚡ Problemas Críticos que Resuelve
+## Problemas Críticos que Resuelve
 
 ### 1. Dos operadores llaman al mismo número (Race Condition)
 - **Problema:** Si 10 operadores presionan *"Llamar Siguiente"* en el mismo milisegundo, una consulta común leería el mismo contador de base de datos y asignaría el mismo voucher a varios estudiantes.
@@ -53,7 +55,7 @@ Opera de forma 100% autónoma en redes locales (LAN / Wi-Fi de campus) sin depen
 
 ---
 
-## 🏛 Arquitectura del Sistema
+## Arquitectura del Sistema
 
 El sistema está estructurado en 4 capas desacopladas con comunicación push en tiempo real:
 
@@ -85,7 +87,7 @@ El sistema está estructurado en 4 capas desacopladas con comunicación push en 
 
 ---
 
-## 🧩 Módulos del Sistema
+## Módulos del Sistema
 
 | Módulo | Ruta Backend | Pantalla Frontend | Responsabilidad Principal |
 |---|---|---|---|
@@ -100,7 +102,7 @@ El sistema está estructurado en 4 capas desacopladas con comunicación push en 
 
 ---
 
-## 🎟 Flujo Operativo: Las 3 Modalidades de Emisión
+## Flujo Operativo: Las 3 Modalidades de Emisión
 
 Desde **Admin → Configuración → Flujo de Emisión de Turnos**, el sistema permite alternar entre 3 modalidades institucionales según la infraestructura de la sede:
 
@@ -131,7 +133,7 @@ Desde **Admin → Configuración → Flujo de Emisión de Turnos**, el sistema p
 
 ---
 
-## 🚀 Guía de Instalación y Despliegue
+## Guía de Instalación y Despliegue
 
 ### A. Servidor de Producción / Linux (Recomendado con Docker)
 
@@ -218,7 +220,7 @@ Si vas a programar o modificar archivos de `src/`:
 
 ---
 
-## ⚙️ Configuración desde el Panel de Administración
+## Configuración desde el Panel de Administración
 
 El sistema almacena 24 parámetros en la tabla `configuracion` de PostgreSQL, editables en caliente sin reiniciar el servidor desde **Admin → Configuración**:
 
@@ -251,7 +253,117 @@ El sistema almacena 24 parámetros en la tabla `configuracion` de PostgreSQL, ed
 
 ---
 
-## 🛠 Referencia de Comandos y Ejecutables
+## Actualización y Mantenimiento de la Base de Datos
+
+El sistema gestiona su base de datos PostgreSQL 15 de forma modular mediante **migraciones SQL canónicas versionadas** ubicadas en la carpeta `migrations/`:
+
+```text
+migrations/
+├── 001_tablas_datos.sql          (Tablas base: usuarios, mesas, lotes, turnos, audit_log, configuracion)
+├── 002_indices.sql               (Indices unicos parciales ux_* para unicidad y alto rendimiento)
+├── 003_funciones_triggers.sql    (Funciones transaccionales atomicas fn_* y triggers de auditoria)
+└── 004_complementos.sql          (Extensiones: soporte de sesiones, canales de impresion, motivo_pausa)
+```
+
+> **Nota técnica importante sobre Docker:** Cuando PostgreSQL se levanta por primera vez, Docker ejecuta automáticamente los scripts montados en `/docker-entrypoint-initdb.d/`. Sin embargo, en una base de datos ya existente con volumen persistente (`turnero_pgdata`), Docker **no vuelve a ejecutar** las migraciones de forma automática para proteger la información existente.
+
+A continuación se detalla el proceso paso a paso según el escenario:
+
+---
+
+### Escenario A: Aplicar Cambios en una Base de Datos Activa (Sin Pérdida de Datos)
+
+Utilice este procedimiento cuando el sistema ya esté en funcionamiento con atenciones, turnos o usuarios reales y se incorpore una nueva columna, tabla, índice o parámetro de configuración.
+
+#### 1. Respaldar preventivamente la base de datos
+Antes de aplicar cualquier cambio estructural en producción, genere una copia de seguridad:
+- **Windows (PowerShell):**
+  ```powershell
+  .\scripts\backup.ps1
+  ```
+- **Linux / macOS (Bash):**
+  ```bash
+  bash scripts/backup.sh
+  ```
+*(El volcado SQL quedará protegido en la carpeta `backups/` con fecha y hora).*
+
+#### 2. Registrar el cambio SQL en la migración
+- Añada la instrucción compatible y segura con cláusula idempotente (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) al final de `migrations/004_complementos.sql` o en un nuevo archivo de migración.
+
+#### 3. Aplicar el cambio en la base de datos viva
+Ejecute la migración directamente sobre PostgreSQL mediante el script de utilidad:
+```bash
+node scripts/run_migration.js migrations/004_complementos.sql
+```
+*O si utiliza Docker y prefiere ejecutarlo directamente con el cliente psql:*
+```bash
+docker exec turnero-db psql -U postgres -d turnero -f /docker-entrypoint-initdb.d/004_complementos.sql
+```
+
+#### 4. Sincronizar nuevas claves de configuración (si aplica)
+Si la actualización incluye nuevos parámetros en la tabla `configuracion`, ejecute:
+```bash
+node scripts/init_config.js
+```
+*(Este comando inserta las claves faltantes con `ON CONFLICT (clave) DO NOTHING`, sin modificar ni sobreescribir los valores que el administrador ya configuró previamente).*
+
+#### 5. Actualizar el contrato y validar la integridad
+Si se añadieron columnas o tablas nuevas, actualice la lista canónica en `tests/bd/bd_contrato_esquema.test.js` y ejecute la validación:
+```bash
+node tests/bd/bd_contrato_esquema.test.js
+```
+*(Valida en vivo que 100% de tablas, columnas, índices, triggers y parámetros cumplan el contrato).*
+
+---
+
+### Escenario B: Reconstrucción Completa desde Cero (Instalación Nueva o Pruebas)
+
+Si desea formatear la base de datos y recrear todo el esquema limpio desde cero con las tablas vacías y el seed inicial:
+
+#### Opción 1: Mediante Node.js (Servidor en ejecución)
+```bash
+npm run migrate   # Ejecuta scripts/recrear_desde_cero.js (reaplica 001 a 004 en orden)
+npm run seed      # Ejecuta scripts/seed.js (crea admin, admin2, operadores op1-op5, mesas y Lote 1)
+```
+
+#### Opción 2: Mediante Docker (Reinicio de volúmenes)
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+*(El parámetro `-v` elimina el volumen anterior; al iniciar, PostgreSQL creará la base de datos limpia ejecutando de inmediato las 4 migraciones).*
+
+---
+
+### Escenario C: Actualización del Sistema con `actualizar_sistema.bat`
+
+Al ejecutar el actualizador por lotes en Windows (**`actualizar_sistema.bat`**):
+1. El script descarga el código nuevo desde Git (`git pull origin main`).
+2. Detiene servicios anteriores y reconstruye contenedores.
+3. **Paso requerido ante cambios de base de datos:** Si la nueva versión de Git incluyó modificaciones en el esquema SQL o nuevas claves de configuración, abra una terminal en la carpeta del proyecto y ejecute:
+   ```bash
+   node scripts/run_migration.js migrations/004_complementos.sql
+   node scripts/init_config.js
+   ```
+   Con esto, la base de datos incorporará las nuevas capacidades conservando íntegro el historial previo de atenciones.
+
+---
+
+### Escenario D: Restaurar un Respaldo Anterior
+
+Si requiere volver a un punto previo de la base de datos:
+- **Windows (PowerShell):**
+  ```powershell
+  .\scripts\restore.ps1 backups\turnero_backup_YYYYMMDD_HHMMSS.sql
+  ```
+- **Linux / macOS (Bash):**
+  ```bash
+  bash scripts/restore.sh backups/turnero_backup_YYYYMMDD_HHMMSS.sql
+  ```
+
+---
+
+## Referencia de Comandos y Ejecutables
 
 ### 1. Archivos `.bat` (Scripts de Control para Windows)
 
@@ -312,7 +424,7 @@ Ejecutar desde la terminal Bash (`bash <script>`):
 
 ---
 
-## 🔒 Credenciales de Acceso Iniciales (Seed)
+## Credenciales de Acceso Iniciales (Seed)
 
 | Rol | Usuario | Contraseña | Permisos |
 |---|---|---|---|

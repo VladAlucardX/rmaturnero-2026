@@ -23,7 +23,7 @@ const TABLAS_ESPERADAS = [
 const COLUMNAS_POR_TABLA = {
   configuracion: ['clave', 'valor', 'descripcion', 'actualizado_en', 'actualizado_por'],
   usuarios: ['id', 'username', 'nombre_completo', 'password_hash', 'rol', 'activo', 'creado_en', 'actualizado_en', 'eliminado_en'],
-  mesas: ['id', 'numero', 'nombre', 'estado', 'operador_id', 'creado_en', 'actualizado_en', 'eliminado_en'],
+  mesas: ['id', 'numero', 'nombre', 'estado', 'operador_id', 'motivo_pausa', 'pausado_en', 'creado_en', 'actualizado_en', 'eliminado_en'],
   lotes_voucher: ['id', 'numero_lote', 'numero_desde', 'numero_hasta', 'ultimo_numero_llamado', 'estado', 'fecha_creacion', 'fecha_activacion', 'fecha_cierre', 'creado_por', 'creado_en', 'actualizado_en', 'eliminado_en'],
   kiosko_contador_diario: ['fecha', 'ultimo_numero', 'sesion', 'actualizado_en'],
   turnos: ['id', 'numero', 'fecha_turno', 'sesion', 'lote_id', 'estado', 'origen', 'mesa_id', 'operador_id', 'creado_en', 'llamado_en', 'finalizado_en', 'duracion_espera_seg', 'duracion_atencion_seg', 'token_consulta', 'idempotency_key', 'device_id'],

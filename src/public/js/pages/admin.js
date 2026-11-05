@@ -341,6 +341,19 @@ export function adminView() {
       this._confirmModal.textoEscrito = '';
     },
 
+    formatearTiempoTranscurrido(fechaIso) {
+      if (!fechaIso) return "";
+      const fecha = new Date(fechaIso);
+      if (isNaN(fecha.getTime())) return "";
+      const segs = Math.max(0, Math.floor((Date.now() - fecha.getTime()) / 1000));
+      if (segs < 60) return "Hace un momento";
+      const mins = Math.floor(segs / 60);
+      if (mins < 60) return "Hace " + mins + " min";
+      const horas = Math.floor(mins / 60);
+      const minsRestantes = mins % 60;
+      return "Hace " + horas + "h " + minsRestantes + "m";
+    },
+
     formatearFechaLote(fechaStr) {
       if (!fechaStr) return '-';
       try {
@@ -1680,7 +1693,7 @@ export function adminView() {
           if (this._loading) return;
           this._loading = true;
           try {
-            await api.patch(`/mesas/${mesaId}/estado`, { estado: 'pausada' });
+            await api.patch(`/mesas/${mesaId}/estado`, { estado: 'pausada', motivo: 'Pausa administrativa / Receso' });
             this.notificar({ tipo: 'info', titulo: 'Mesa pausada', mensaje: `${label} quedó en pausa. El operador sigue asignado.` });
             await Promise.allSettled([this.cargarMesas(), this.cargarKPIs()]);
           } catch (err) {

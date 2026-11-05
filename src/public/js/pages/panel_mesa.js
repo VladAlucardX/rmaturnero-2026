@@ -315,6 +315,7 @@ export function panelMesaView() {
             return;
           }
           this.mesaPausada = data.mesa.estado === 'pausada';
+          if (data.mesa.motivo_pausa) this.motivoPausa = data.mesa.motivo_pausa;
           if (data.mesa.nombre) this.mesa.nombre = data.mesa.nombre;
           if (data.mesa.numero !== undefined && data.mesa.numero !== null) {
             this.mesa.numero = data.mesa.numero;

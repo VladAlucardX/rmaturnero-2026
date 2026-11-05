@@ -110,3 +110,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_turnos_kiosko_dia_numero
 -- =============================================================================
 -- FIN ARCHIVO 4/4
 -- =============================================================================
+-- ---------------------------------------------------------------------------
+-- 7. Trazabilidad de motivos de pausa en mesas
+-- ---------------------------------------------------------------------------
+ALTER TABLE mesas ADD COLUMN IF NOT EXISTS motivo_pausa VARCHAR(100) DEFAULT NULL;
+ALTER TABLE mesas ADD COLUMN IF NOT EXISTS pausado_en TIMESTAMPTZ DEFAULT NULL;

@@ -270,9 +270,17 @@
                 <td class="p-3 font-mono-num font-bold text-slate-900" x-text="'MESA ' + mesa.numero"></td>
                 <td class="p-3 text-slate-700 font-medium" x-text="mesa.operador_nombre || 'Sin asignar'"></td>
                 <td class="p-3">
-                  <span class="pill text-[10px] uppercase font-semibold"
-                    :class="mesa.estado === 'activa' ? 'pill-success' : (mesa.estado === 'pausada' ? 'pill-warning' : 'pill-neutral')"
-                    x-text="mesa.estado"></span>
+                  <div class="flex flex-col items-start gap-1">
+                    <span class="pill text-[10px] uppercase font-semibold"
+                      :class="mesa.estado === 'activa' ? 'pill-success' : (mesa.estado === 'pausada' ? 'pill-warning' : 'pill-neutral')"
+                      x-text="mesa.estado"></span>
+                    <template x-if="mesa.estado === 'pausada' && mesa.motivo_pausa">
+                      <div class="flex flex-col text-left">
+                        <span class="text-[11px] font-semibold text-amber-800 leading-tight" x-text="mesa.motivo_pausa"></span>
+                        <span x-show="mesa.pausado_en" class="text-[10px] text-slate-500 font-mono-num" x-text="formatearTiempoTranscurrido(mesa.pausado_en)"></span>
+                      </div>
+                    </template>
+                  </div>
                 </td>
                 <td class="p-3 font-mono-num font-bold text-blue-700"
                   x-text="mesa.turno_actual ? ('#' + String(mesa.turno_actual).padStart(3, '0')) : '--'"></td>
@@ -695,13 +703,21 @@
             </div>
 
             <!-- Pie de Tarjeta Informativo (Cero botones sueltos) -->
-            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span class="flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 rounded-full"
-                  :class="mesa.estado === 'activa' ? 'bg-emerald-500' : (mesa.estado === 'pausada' ? 'bg-amber-500' : 'bg-slate-400')"></span>
-                <span x-text="mesa.estado === 'activa' ? 'Habilitada para llamados' : (mesa.estado === 'pausada' ? 'Pausa temporal' : 'Fuera de servicio')"></span>
-              </span>
-              <span class="font-mono-num font-semibold text-slate-700" x-text="mesa.operador_nombre ? 'Asignada' : 'Disponible'"></span>
+            <div class="pt-2 border-t border-slate-100 flex flex-col gap-1.5 text-[11px] text-slate-500">
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full"
+                    :class="mesa.estado === 'activa' ? 'bg-emerald-500' : (mesa.estado === 'pausada' ? 'bg-amber-500' : 'bg-slate-400')"></span>
+                  <span x-text="mesa.estado === 'activa' ? 'Habilitada para llamados' : (mesa.estado === 'pausada' ? 'Pausa temporal' : 'Fuera de servicio')"></span>
+                </span>
+                <span class="font-mono-num font-semibold text-slate-700" x-text="mesa.operador_nombre ? 'Asignada' : 'Disponible'"></span>
+              </div>
+              <template x-if="mesa.estado === 'pausada' && mesa.motivo_pausa">
+                <div class="bg-amber-50/80 rounded-lg p-2 border border-amber-200/60 text-amber-900 flex items-center justify-between gap-1 text-[11px]">
+                  <span class="font-medium truncate" :title="mesa.motivo_pausa" x-text="mesa.motivo_pausa"></span>
+                  <span x-show="mesa.pausado_en" class="font-mono-num text-amber-700 font-semibold shrink-0 text-[10px]" x-text="formatearTiempoTranscurrido(mesa.pausado_en)"></span>
+                </div>
+              </template>
             </div>
           </div>
         </template>

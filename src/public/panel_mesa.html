@@ -386,7 +386,7 @@
       <div class="text-left space-y-1">
         <label for="select-motivo-pausa" class="block text-xs font-semibold text-slate-700">Motivo del
           receso:</label>
-        <select id="select-motivo-pausa" x-model="motivoPausa" title="Motivo del receso" class="select-field text-xs">
+        <select id="select-motivo-pausa" x-model="motivoPausa" @change="cambiarMotivoPausa()" title="Motivo del receso" class="select-field text-xs">
           <option>Descanso programado / Almuerzo</option>
           <option>Soporte técnico / Validación</option>
           <option>Reunión de coordinación</option>
