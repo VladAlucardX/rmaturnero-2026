@@ -28,8 +28,6 @@ services:
       - "${DB_PORT_EXPOSED:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Todas las migraciones 001..007 se ejecutan automáticamente en orden al crear la BD
-      - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -133,9 +131,7 @@ services:
       retries: 5
       start_period: 15s
     volumes:
-      # En desarrollo: montar el código fuente para hot-reload y permitir uploads
-      - ./src:/app/src
-      - ./migrations:/app/migrations:ro
+      - uploads_data:/app/src/public/assets/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -153,6 +149,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  uploads_data:
     driver: local
 
 # =============================================================================

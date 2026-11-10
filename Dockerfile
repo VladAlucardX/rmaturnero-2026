@@ -58,4 +58,4 @@ USER fastify
 EXPOSE 3000
 
 # Señales de Docker manejadas por Node.js directamente
-CMD ["node", "src/server.js"]
+CMD ["node", "scripts/entrypoint.js"]
