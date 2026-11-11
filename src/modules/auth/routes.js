@@ -48,11 +48,13 @@ module.exports = async function authRoutes (fastify) {
 
     const { token, refreshToken, usuario } = await login(fastify, { username, password, ip })
 
+    const isHttps = request.protocol === 'https' || request.headers['x-forwarded-proto'] === 'https'
+
     // Refresh token en cookie HttpOnly (RNF-SEG-05)
     reply.setCookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure:   Boolean(isHttps),
+      sameSite: 'lax',
       path:     '/auth/refresh',
       maxAge:   7 * 24 * 60 * 60  // 7 dias
     })
@@ -60,7 +62,7 @@ module.exports = async function authRoutes (fastify) {
     // Cookie de sesión para navegación directa y protección de pantallas en servidor
     reply.setCookie('turnero_token', token, {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
+      secure:   Boolean(isHttps),
       sameSite: 'lax',
       path:     '/'
     })
@@ -146,9 +148,10 @@ module.exports = async function authRoutes (fastify) {
 
     try {
       const { token } = await refresh(fastify, { refreshToken })
+      const isHttps = request.protocol === 'https' || request.headers['x-forwarded-proto'] === 'https'
       reply.setCookie('turnero_token', token, {
         httpOnly: true,
-        secure:   process.env.NODE_ENV === 'production',
+        secure:   Boolean(isHttps),
         sameSite: 'lax',
         path:     '/'
       })
