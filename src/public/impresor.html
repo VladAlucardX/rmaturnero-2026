@@ -130,7 +130,8 @@
       <button type="button"
               @click="imprimirSiguiente()"
               :disabled="imprimiendo"
-              class="w-full h-16 rounded-2xl bg-[#1D4ED8] hover:bg-blue-800 active:scale-[0.98] text-white font-bold text-lg tracking-wide shadow-md transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 disabled:cursor-wait">
+              style="background-color:#1D4ED8; color:#ffffff;"
+              class="w-full h-16 rounded-2xl hover:opacity-90 active:scale-[0.98] font-bold text-lg tracking-wide shadow-md transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 disabled:cursor-wait border-0">
         
         <!-- Icono de Impresión o Spinner -->
         <template x-if="!imprimiendo">
