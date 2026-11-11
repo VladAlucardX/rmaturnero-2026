@@ -391,51 +391,6 @@ export class WebBluetoothThermalPrinter {
       throw err;
     }
   }
-      this.deviceName = dev.name || 'Impresora Bluetooth';
-
-      dev.addEventListener('gattserverdisconnected', () => {
-        this.characteristic = null;
-        this.server = null;
-        this._setStatus('desconectado');
-      });
-
-      // 2. Conectar al GATT Server
-      this.server = await dev.gatt.connect();
-
-      // 3. Buscar el servicio y característica de escritura
-      const services = await this.server.getPrimaryServices();
-      let targetChar = null;
-
-      for (const service of services) {
-        try {
-          const chars = await service.getCharacteristics();
-          for (const c of chars) {
-            if (c.properties.write || c.properties.writeWithoutResponse) {
-              targetChar = c;
-              break;
-            }
-          }
-        } catch (_) {}
-        if (targetChar) break;
-      }
-
-      if (!targetChar) {
-        throw new Error('No se encontró una característica de escritura en la impresora Bluetooth seleccionada.');
-      }
-
-      this.characteristic = targetChar;
-      this._setStatus('conectado');
-
-      try {
-        localStorage.setItem('turnero_kiosko_bt_name', this.deviceName);
-      } catch (_) {}
-
-      return { ok: true, nombre: this.deviceName };
-    } catch (err) {
-      this._setStatus('desconectado');
-      throw err;
-    }
-  }
 
   desconectar() {
     if (this.device && this.device.gatt && this.device.gatt.connected) {

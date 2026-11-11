@@ -422,7 +422,7 @@
   </div>
 
   <!-- ── 8. ÁREA DE IMPRESIÓN EXCLUSIVA PARA EL SISTEMA (@media print) ── -->
-  <div class="ticket-print-area" aria-hidden="true">
+  <div class="ticket-print-area" aria-hidden="true" style="display:none">
     <div style="font-size: 13pt; font-weight: bold; text-transform: uppercase;">Centro Tecnológico</div>
     <div style="font-size: 11pt; font-weight: bold; margin-bottom: 4px;">Ricardo Morales Avilés</div>
     <div style="border-top: 1px dashed #000; margin: 4px 0;"></div>
@@ -435,7 +435,8 @@
   </div>
 
   <!-- Scripts modulares -->
-  <script type="module" src="/js/pages/impresor.js"></script>
   <script defer src="/vendor/alpine-3.13.3.min.js"></script>
+  <script type="module" src="/js/pages/impresor.js"></script>
 </body>
 </html>
+
