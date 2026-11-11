@@ -37,6 +37,12 @@
         <span x-text="kioskoLabelHeader"></span>
         <svg class="w-3 h-3 text-slate-400 stroke-[1.75]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
       </a>
+      <a href="/impresor.html" class="btn-ghost btn-sm" title="Impresor de tickets para portón">
+        <svg class="w-4 h-4 text-blue-700 stroke-[1.75]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.13-1.27-3.104m12.1 0c-.597.974-1.03 2.028-1.27 3.104M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-18 0A2.25 2.25 0 015.25 14.25h13.5A2.25 2.25 0 0121 16.5m-18 0h18" />
+        </svg>
+        <span class="hidden sm:inline">Impresor Portón</span>
+      </a>
       <a href="/tv.html" target="_blank" rel="noopener noreferrer" class="btn-ghost btn-sm">
         <svg class="w-4 h-4 text-blue-700 stroke-[1.75]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" /></svg>
         <span>Abrir pantalla TV</span>
@@ -330,7 +336,11 @@
   <!-- ── 3. PIE DE PÁGINA ── -->
   <footer class="app-footer py-2.5 px-6 flex items-center justify-between text-xs text-slate-400">
     <span>Turnero de Matrículas 2026 • v2.1</span>
-    <span>Portal de Acceso</span>
+    <div class="flex items-center gap-2">
+      <a href="/impresor.html" class="hover:text-blue-600 transition-colors font-medium">Impresor de Portón (PT-210)</a>
+      <span>•</span>
+      <span>Portal de Acceso</span>
+    </div>
   </footer>
 
   <!-- Scripts al final del body -->

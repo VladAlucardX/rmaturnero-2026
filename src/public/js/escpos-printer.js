@@ -178,25 +178,95 @@ export function construirVoucherESCPOS(ticket = {}, ancho = 58) {
   return concatBytes(partes);
 }
 
-// ── Servicios Bluetooth conocidos para impresoras térmicas ESC/POS ───────────
+/**
+ * Construye el buffer binario ESC/POS para el ticket del Centro Tecnológico Ricardo Morales Avilés.
+ * @param {number|string} numero - Número de turno (ej. 1, 47, "#047")
+ * @param {object} [opciones={}]
+ * @returns {Uint8Array}
+ */
+export function construirTicketCentroTecnologico(numero, opciones = {}) {
+  const ahora = new Date();
+  const fechaStr = opciones.fecha || ahora.toLocaleDateString('es-NI', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const horaStr  = opciones.hora  || ahora.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true });
+  
+  let numStr = String(numero || '1');
+  if (!numStr.startsWith('#')) {
+    numStr = `#${numStr.padStart(3, '0')}`;
+  }
+
+  const partes = [
+    ESCPOS_CMD.INIT,
+    ESCPOS_CMD.ALIGN_CENTER,
+
+    // Título Línea 1: Centro Tecnológico
+    ESCPOS_CMD.BOLD_ON,
+    ESCPOS_CMD.DOUBLE_HEIGHT,
+    encodeText('Centro Tecnologico'),
+    ESCPOS_CMD.NORMAL_SIZE,
+
+    // Título Línea 2: Ricardo Morales Avilés
+    encodeText('Ricardo Morales Aviles'),
+    ESCPOS_CMD.BOLD_OFF,
+    ESCPOS_CMD.LINE_FEED,
+
+    // Divisor
+    encodeText('--------------------------------'),
+    encodeText('TURNO DE ATENCION'),
+    ESCPOS_CMD.LINE_FEED,
+
+    // Número gigante: GS ! 0x33 (4x ancho y alto)
+    new Uint8Array([GS, 0x21, 0x33]),
+    ESCPOS_CMD.BOLD_ON,
+    encodeText(numStr),
+    ESCPOS_CMD.BOLD_OFF,
+    ESCPOS_CMD.FONT_NORMAL,
+    ESCPOS_CMD.LINE_FEED,
+
+    // Divisor
+    encodeText('--------------------------------'),
+
+    // Pie
+    encodeText(`${fechaStr}  ${horaStr}`),
+    encodeText('Conserve este comprobante'),
+    ESCPOS_CMD.LINE_FEED,
+    ESCPOS_CMD.LINE_FEED,
+    ESCPOS_CMD.LINE_FEED,
+    ESCPOS_CMD.LINE_FEED // Avance de líneas para sobrepasar la cuchilla manual de la PT-210
+  ];
+
+  return concatBytes(partes);
+}
+
+// ── Servicios Bluetooth conocidos para impresoras térmicas ESC/POS (PT-210, MPT-II, POS-58) ─
 const BLE_PRINTER_SERVICES = [
   '000018f0-0000-1000-8000-00805f9b34fb', // Servicio estándar ESC/POS
-  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 / PT-210 / MPT-II
+  '0000ff00-0000-1000-8000-00805f9b34fb', // POS-58 genéricas
+  '0000fff0-0000-1000-8000-00805f9b34fb', // FFF0
+  '0000fee7-0000-1000-8000-00805f9b34fb', // Tencent / WeChat BLE
   '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC Transparent UART
-  0xffe0                                  // HM-10 y genéricas
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '0000ae00-0000-1000-8000-00805f9b34fb',
+  '0000ae30-0000-1000-8000-00805f9b34fb',
+  '0000af30-0000-1000-8000-00805f9b34fb',
+  0xffe0,
+  0xff00,
+  0xfff0
 ];
 
 /**
- * Cliente Web Bluetooth para impresoras térmicas portátiles.
+ * Cliente Web Bluetooth para impresoras térmicas portátiles (ej. PT-210).
  */
 export class WebBluetoothThermalPrinter {
-  constructor() {
+  constructor(opts = {}) {
     this.device = null;
     this.server = null;
     this.characteristic = null;
     this.deviceName = '';
     this.status = 'desconectado'; // 'desconectado' | 'conectando' | 'conectado' | 'error'
-    this.onStatusChange = null;
+    this.onStatusChange = opts.onStatusChange || null;
+    this.onConnected = opts.onConnected || null;
+    this.onDisconnected = opts.onDisconnected || null;
   }
 
   static isSupported() {
@@ -208,6 +278,69 @@ export class WebBluetoothThermalPrinter {
     if (typeof this.onStatusChange === 'function') {
       this.onStatusChange(st, this.deviceName);
     }
+    if (st === 'conectado' && typeof this.onConnected === 'function') {
+      this.onConnected(this.device);
+    } else if (st === 'desconectado' && typeof this.onDisconnected === 'function') {
+      this.onDisconnected();
+    }
+  }
+
+  async _conectarGatt() {
+    this.device.addEventListener('gattserverdisconnected', () => {
+      this.characteristic = null;
+      this.server = null;
+      this._setStatus('desconectado');
+    });
+
+    this.server = await this.device.gatt.connect();
+    const services = await this.server.getPrimaryServices();
+    let targetChar = null;
+
+    for (const service of services) {
+      try {
+        const chars = await service.getCharacteristics();
+        for (const c of chars) {
+          if (c.properties.write || c.properties.writeWithoutResponse) {
+            targetChar = c;
+            break;
+          }
+        }
+      } catch (_) {}
+      if (targetChar) break;
+    }
+
+    if (!targetChar) {
+      throw new Error('No se encontró una característica de escritura en la impresora Bluetooth seleccionada.');
+    }
+
+    this.characteristic = targetChar;
+    this._setStatus('conectado');
+
+    try {
+      localStorage.setItem('turnero_kiosko_bt_name', this.deviceName);
+      localStorage.setItem('turnero_impresor_bt_name', this.deviceName);
+    } catch (_) {}
+  }
+
+  async reconectarSilencioso() {
+    if (!WebBluetoothThermalPrinter.isSupported() || !navigator.bluetooth.getDevices) {
+      return false;
+    }
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      const savedName = localStorage.getItem('turnero_impresor_bt_name') || localStorage.getItem('turnero_kiosko_bt_name');
+      const dev = devices.find(d => d.name === savedName) || devices[0];
+      if (dev && dev.gatt) {
+        this.device = dev;
+        this.deviceName = dev.name || 'Impresora Bluetooth';
+        this._setStatus('conectando');
+        await this._conectarGatt();
+        return true;
+      }
+    } catch (_) {
+      this._setStatus('desconectado');
+    }
+    return false;
   }
 
   async conectar() {
@@ -218,20 +351,26 @@ export class WebBluetoothThermalPrinter {
     this._setStatus('conectando');
 
     try {
-      // 1. Escanear dispositivos (con fallback de acceptAllDevices)
+      // 1. Escanear dispositivos térmicos con filtros conocidos
       let dev = null;
       try {
         dev = await navigator.bluetooth.requestDevice({
           filters: [
+            { namePrefix: 'PT-' },
+            { namePrefix: 'MPT' },
+            { namePrefix: 'POS' },
+            { namePrefix: 'MTP' },
+            { namePrefix: 'Printer' },
+            { namePrefix: 'RPP' },
+            { namePrefix: 'BlueTooth' },
             { services: ['000018f0-0000-1000-8000-00805f9b34fb'] },
-            { services: ['e7810a71-73ae-499d-8c15-faa9aef0c3f2'] },
-            { services: ['49535343-fe7d-4ae5-8fa9-9fafd205e455'] },
-            { services: [0xffe0] }
+            { services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] },
+            { services: ['49535343-fe7d-4ae5-8fa9-9fafd205e455'] }
           ],
           optionalServices: BLE_PRINTER_SERVICES
         });
       } catch (filterErr) {
-        // Si no coincide con los filtros estándar, permitir seleccionar entre todos los dispositivos visibles
+        // Fallback a acceptAllDevices si no coincide con los prefijos
         dev = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
           optionalServices: BLE_PRINTER_SERVICES
@@ -243,6 +382,15 @@ export class WebBluetoothThermalPrinter {
       }
 
       this.device = dev;
+      this.deviceName = dev.name || 'Impresora Bluetooth';
+
+      await this._conectarGatt();
+      return { ok: true, nombre: this.deviceName };
+    } catch (err) {
+      this._setStatus('desconectado');
+      throw err;
+    }
+  }
       this.deviceName = dev.name || 'Impresora Bluetooth';
 
       dev.addEventListener('gattserverdisconnected', () => {
@@ -341,7 +489,7 @@ export class WebBluetoothThermalPrinter {
       }
     }
 
-    const CHUNK_SIZE = 128;
+    const CHUNK_SIZE = 64; // Tamaño óptimo de 64 bytes para evitar desbordes en el buffer de la PT-210
     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
       const chunk = data.slice(i, i + CHUNK_SIZE);
       if (this.characteristic.properties.writeWithoutResponse) {
@@ -349,8 +497,8 @@ export class WebBluetoothThermalPrinter {
       } else {
         await this.characteristic.writeValueWithResponse(chunk);
       }
-      // Pequeño retardo entre bloques para evitar saturar el buffer de la impresora
-      await new Promise(r => setTimeout(r, 20));
+      // Retardo seguro entre bloques para que el procesador térmico imprima fluido
+      await new Promise(r => setTimeout(r, 25));
     }
 
     return { ok: true };

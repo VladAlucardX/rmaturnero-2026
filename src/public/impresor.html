@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full w-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Impresor de Tickets — Centro Tecnológico Ricardo Morales Avilés</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/tailwind.css">
+  <link rel="icon" href="data:,">
+</head>
+<body class="bg-app text-slate-800 min-h-full flex flex-col justify-between antialiased selection:bg-blue-600 selection:text-white"
+      x-data="impresorView()" x-cloak>
+
+  <!-- ── 1. ENCABEZADO SUPERIOR ── -->
+  <header class="app-header px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xs bg-white/95 backdrop-blur-xs">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-blue-700 flex items-center justify-center text-white shadow-xs shrink-0">
+        <svg class="w-5 h-5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+        </svg>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-bold text-slate-900 text-sm leading-tight tracking-tight">Centro Tecnológico</span>
+        <span class="text-xs text-blue-700 font-semibold leading-tight">Ricardo Morales Avilés • Portón</span>
+      </div>
+    </div>
+
+    <!-- Acciones Derecha: Estado de Impresora y Enlace -->
+    <div class="flex items-center gap-2">
+      <!-- Botón e Icono de Impresora (Abre Modal de Configuración) -->
+      <button type="button" @click="modalAjustes = true"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer shadow-xs active:scale-95"
+              :class="bluetoothConectado
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+                : (modoImpresion === 'sistema'
+                  ? 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                  : 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100')"
+              title="Configurar impresora térmica"
+              aria-label="Configurar impresora térmica">
+        
+        <!-- Icono de Impresora SVG -->
+        <svg class="w-4 h-4 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.13-1.27-3.104m12.1 0c-.597.974-1.03 2.028-1.27 3.104M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-18 0A2.25 2.25 0 015.25 14.25h13.5A2.25 2.25 0 0121 16.5m-18 0h18" />
+        </svg>
+
+        <!-- Indicador de estado -->
+        <span class="w-2 h-2 rounded-full"
+              :class="bluetoothConectado ? 'bg-emerald-500 animate-pulse' : (modoImpresion === 'sistema' ? 'bg-blue-500' : 'bg-rose-500')"></span>
+
+        <span class="text-xs font-semibold hidden sm:inline"
+              x-text="bluetoothConectado ? (bluetoothDispositivoNombre || 'PT-210 Conectada') : (modoImpresion === 'sistema' ? 'Modo Sistema' : 'Sin Impresora')"></span>
+      </button>
+
+      <!-- Enlace a Portal Principal -->
+      <a href="/index.html"
+         class="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+         title="Volver al portal" aria-label="Volver al portal">
+        <svg class="w-4 h-4 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- ── 2. CONTENIDO PRINCIPAL: DISPENSADOR TÁCTIL MÓVIL ── -->
+  <main class="flex-1 flex flex-col items-center justify-center px-4 py-6 max-w-md w-full mx-auto space-y-5">
+
+    <!-- Tarjeta Visual del Ticket (Estilo Comprobante Térmico) -->
+    <div class="card w-full p-6 text-center shadow-md border border-[#CBD5E1] bg-white rounded-2xl relative overflow-hidden">
+      <!-- Borde superior decorativo institucional -->
+      <div class="absolute top-0 inset-x-0 h-1.5 bg-blue-700"></div>
+
+      <!-- Membrete institucional impreso -->
+      <div class="space-y-1 mb-4 pt-1">
+        <h2 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-tight uppercase">Centro Tecnológico</h2>
+        <h3 class="text-xs sm:text-sm font-semibold text-blue-800 tracking-tight leading-tight">Ricardo Morales Avilés</h3>
+        <div class="w-24 h-px bg-slate-200 mx-auto my-2"></div>
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Turno de Atención</p>
+      </div>
+
+      <!-- Número Colosal en JetBrains Mono -->
+      <div class="py-3 px-4 bg-slate-50/80 rounded-xl border border-slate-200/90 mb-4">
+        <div class="text-6xl sm:text-7xl font-mono-num font-extrabold text-blue-700 tracking-tight leading-none"
+             x-text="formatoNumero(numeroActual)">
+          #001
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2 font-medium">Siguiente número por emitir</p>
+      </div>
+
+      <!-- Ajustes rápidos de contador (+1, -1, fijar manual) -->
+      <div class="flex items-center justify-between gap-2 px-1 text-xs text-slate-500 mb-2">
+        <button type="button" @click="ajustarContador(-1)"
+                :disabled="numeroActual <= 1 || imprimiendo"
+                class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-mono-num font-bold transition-colors cursor-pointer"
+                title="Retroceder 1 número">
+          -1
+        </button>
+
+        <button type="button" @click="abrirModalEditarContador()"
+                :disabled="imprimiendo"
+                class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-blue-400 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Cambiar número manualmente">
+          <svg class="w-3.5 h-3.5 stroke-[1.8] text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+          </svg>
+          <span>Ajustar número</span>
+        </button>
+
+        <button type="button" @click="ajustarContador(1)"
+                :disabled="imprimiendo"
+                class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-mono-num font-bold transition-colors cursor-pointer"
+                title="Avanzar 1 número">
+          +1
+        </button>
+      </div>
+
+      <!-- Fecha y hora de referencia -->
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-mono-num">
+        <span x-text="relojFecha"></span>
+        <span x-text="relojHora"></span>
+      </div>
+    </div>
+
+    <!-- ── BOTÓN PRINCIPAL DE IMPRESIÓN (ACCIÓN DESTACADA) ── -->
+    <div class="w-full space-y-3">
+      <button type="button"
+              @click="imprimirSiguiente()"
+              :disabled="imprimiendo"
+              class="w-full h-16 rounded-2xl bg-[#1D4ED8] hover:bg-blue-800 active:scale-[0.98] text-white font-bold text-lg tracking-wide shadow-md transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 disabled:cursor-wait">
+        
+        <!-- Icono de Impresión o Spinner -->
+        <template x-if="!imprimiendo">
+          <svg class="w-6 h-6 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.13-1.27-3.104m12.1 0c-.597.974-1.03 2.028-1.27 3.104M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-18 0A2.25 2.25 0 015.25 14.25h13.5A2.25 2.25 0 0121 16.5m-18 0h18" />
+          </svg>
+        </template>
+        <template x-if="imprimiendo">
+          <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+        </template>
+
+        <span x-text="imprimiendo ? 'Imprimiendo ticket...' : 'IMPRIMIR SIGUIENTE'"></span>
+      </button>
+
+      <!-- Botones de Acción Secundaria (Reimpresión) -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <!-- Reimprimir el último turno emitido -->
+        <button type="button"
+                @click="reimprimirAnterior()"
+                :disabled="!ultimoImpreso || imprimiendo"
+                class="h-11 px-3 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title="Reimprimir el comprobante inmediatamente anterior">
+          <svg class="w-4 h-4 stroke-[1.8] text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          <span>Reimprimir <strong class="font-mono-num" x-text="ultimoImpreso ? formatoNumero(ultimoImpreso) : ''"></strong></span>
+        </button>
+
+        <!-- Reimprimir cualquier número específico -->
+        <button type="button"
+                @click="abrirModalReimprimir()"
+                :disabled="imprimiendo"
+                class="h-11 px-3 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                title="Reimprimir un número de turno en particular">
+          <svg class="w-4 h-4 stroke-[1.8] text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <span>Otro número...</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tarjeta de Resumen Rápido de la Jornada -->
+    <div class="card w-full p-4 bg-white/80 border border-slate-200/80 rounded-2xl flex items-center justify-around text-center text-xs">
+      <div>
+        <span class="block text-slate-400 text-[10px] uppercase font-semibold">Emitidos hoy</span>
+        <span class="text-lg font-bold font-mono-num text-slate-900" x-text="totalEmitidos">0</span>
+      </div>
+      <div class="w-px h-8 bg-slate-200"></div>
+      <div>
+        <span class="block text-slate-400 text-[10px] uppercase font-semibold">Último impreso</span>
+        <span class="text-lg font-bold font-mono-num text-blue-700" x-text="ultimoImpreso ? formatoNumero(ultimoImpreso) : '---'">---</span>
+      </div>
+      <div class="w-px h-8 bg-slate-200"></div>
+      <div>
+        <button type="button" @click="reiniciarJornada()"
+                class="text-[11px] text-slate-400 hover:text-rose-600 transition-colors font-medium underline cursor-pointer"
+                title="Reiniciar contador a #001">
+          Reiniciar #1
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── 3. PIE DE PÁGINA COMPACTO ── -->
+  <footer class="app-footer py-2.5 px-6 flex items-center justify-between text-xs text-slate-400 border-t border-slate-200/80 bg-white">
+    <span>Turnero 2026 • Impresor de Portón</span>
+    <span class="font-mono-num text-[11px]">PT-210 • 58mm</span>
+  </footer>
+
+  <!-- ── 4. MODAL: CONFIGURACIÓN DE IMPRESORA TÉRMICA (PT-210) ── -->
+  <div x-show="modalAjustes" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in"
+       @keydown.escape.window="modalAjustes = false">
+    <div class="card max-w-md w-full p-6 text-left space-y-5 shadow-xl border border-slate-300 bg-white rounded-2xl"
+         @click.away="modalAjustes = false">
+
+      <!-- Encabezado del Modal -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
+            <svg class="w-5 h-5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.13-1.27-3.104m12.1 0c-.597.974-1.03 2.028-1.27 3.104M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-18 0A2.25 2.25 0 015.25 14.25h13.5A2.25 2.25 0 0121 16.5m-18 0h18" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 leading-none">Impresora Bluetooth PT-210</h3>
+            <p class="text-xs text-slate-500 mt-1">Conexión inalámbrica térmica 58mm</p>
+          </div>
+        </div>
+        <button type="button" @click="modalAjustes = false"
+                class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Cerrar modal" aria-label="Cerrar modal">
+          <svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Estado y Acciones de Bluetooth -->
+      <div class="space-y-4">
+        <!-- Tarjeta de Estado Actual -->
+        <div class="p-3.5 rounded-xl border flex items-center justify-between"
+             :class="bluetoothConectado ? 'bg-emerald-50/70 border-emerald-200' : 'bg-slate-50 border-slate-200'">
+          <div>
+            <span class="block text-xs font-bold text-slate-900"
+                  x-text="bluetoothConectado ? (bluetoothDispositivoNombre || 'PT-210 Conectada') : 'No hay impresora vinculada'"></span>
+            <span class="text-[11px] text-slate-500"
+                  x-text="bluetoothConectado ? 'Lista para emitir tickets por Bluetooth' : 'Pulse el botón para buscar y vincular su PT-210'"></span>
+          </div>
+
+          <!-- Badge -->
+          <span class="pill text-xs py-1 px-2.5"
+                :class="bluetoothConectado ? 'pill-success' : 'pill-neutral'"
+                x-text="bluetoothConectado ? 'Conectado' : 'Desconectado'"></span>
+        </div>
+
+        <!-- Botones de Conexión Bluetooth -->
+        <div class="space-y-2">
+          <template x-if="!bluetoothConectado">
+            <button type="button" @click="conectarBluetooth()"
+                    :disabled="conectandoBluetooth"
+                    class="w-full h-11 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60">
+              <svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+              <span x-text="conectandoBluetooth ? 'Buscando dispositivos Bluetooth...' : 'Buscar y Vincular Impresora PT-210'"></span>
+            </button>
+          </template>
+
+          <template x-if="bluetoothConectado">
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" @click="imprimirTicketPrueba()"
+                      class="h-10 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                <svg class="w-3.5 h-3.5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Probar Impresión</span>
+              </button>
+
+              <button type="button" @click="desconectarBluetooth()"
+                      class="h-10 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                <span>Desvincular</span>
+              </button>
+            </div>
+          </template>
+        </div>
+
+        <!-- Selección de Modo de Impresión -->
+        <div class="space-y-2 pt-2 border-t border-slate-200">
+          <label class="text-xs font-semibold text-slate-700 block">Modo de Impresión</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button type="button" @click="cambiarModoImpresion('bluetooth')"
+                    class="p-2.5 rounded-xl border text-left transition-all cursor-pointer"
+                    :class="modoImpresion === 'bluetooth' ? 'border-blue-600 bg-blue-50/70 text-blue-900 font-bold ring-1 ring-blue-500/20' : 'border-slate-200 text-slate-600 hover:bg-slate-50'">
+              <span class="block text-xs font-bold">Bluetooth Directo</span>
+              <span class="text-[10px] text-slate-500 font-normal">ESC/POS nativo a PT-210</span>
+            </button>
+
+            <button type="button" @click="cambiarModoImpresion('sistema')"
+                    class="p-2.5 rounded-xl border text-left transition-all cursor-pointer"
+                    :class="modoImpresion === 'sistema' ? 'border-blue-600 bg-blue-50/70 text-blue-900 font-bold ring-1 ring-blue-500/20' : 'border-slate-200 text-slate-600 hover:bg-slate-50'">
+              <span class="block text-xs font-bold">Modo Sistema</span>
+              <span class="text-[10px] text-slate-500 font-normal">Android / RawBT / Diálogo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Guía de Activación en HTTP para Celulares -->
+        <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-200/80 text-[11px] text-slate-700 space-y-1.5">
+          <div class="font-bold text-blue-900 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-blue-700 stroke-[2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+            <span>¿Conectando desde el celular por HTTP?</span>
+          </div>
+          <p class="leading-relaxed text-slate-600">
+            Chrome en Android requiere habilitar la búsqueda Bluetooth para orígenes en red local.
+          </p>
+          <div class="pt-1 flex items-center gap-2">
+            <button type="button" @click="copiarTexto(urlOrigenActual)"
+                    class="px-2.5 py-1 bg-white border border-blue-300 text-blue-700 font-semibold rounded-lg hover:bg-blue-50 text-[10px] transition-colors cursor-pointer">
+              Copiar URL actual
+            </button>
+            <button type="button" @click="copiarTexto('chrome://flags/#unsafely-treat-insecure-origin-as-secure')"
+                    class="px-2.5 py-1 bg-white border border-blue-300 text-blue-700 font-semibold rounded-lg hover:bg-blue-50 text-[10px] transition-colors cursor-pointer">
+              Copiar ruta de Chrome Flag
+            </button>
+          </div>
+        </div>
+
+        <!-- Mensaje de error si ocurre -->
+        <template x-if="errorAjustes">
+          <p class="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200" x-text="errorAjustes"></p>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. MODAL: REIMPRIMIR NÚMERO ESPECÍFICO ── -->
+  <div x-show="modalReimprimir" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in"
+       @keydown.escape.window="cerrarModalReimprimir()">
+    <div class="card max-w-sm w-full p-6 text-left space-y-4 shadow-xl border border-slate-300 bg-white rounded-2xl"
+         @click.away="cerrarModalReimprimir()">
+      
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+        <h3 class="text-sm font-bold text-slate-900">Reimprimir Turno Específico</h3>
+        <button type="button" @click="cerrarModalReimprimir()" class="text-slate-400 hover:text-slate-700">
+          <svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-500">Ingrese el número que desea volver a imprimir. Esto no modificará el turno actual por emitir.</p>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Número de turno:</label>
+        <input type="number" min="1" max="9999"
+               x-model="numeroAReimprimir"
+               @keydown.enter="confirmarReimpresion()"
+               class="w-full h-12 text-center text-2xl font-mono-num font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:outline-none">
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" @click="cerrarModalReimprimir()"
+                class="h-10 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+          Cancelar
+        </button>
+        <button type="button" @click="confirmarReimpresion()"
+                class="h-10 rounded-xl bg-blue-700 hover:bg-blue-800 text-xs font-bold text-white shadow-xs cursor-pointer">
+          Reimprimir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 6. MODAL: EDITAR CONTADOR MANUALMENTE ── -->
+  <div x-show="modalEditarContador" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in"
+       @keydown.escape.window="cerrarModalEditarContador()">
+    <div class="card max-w-sm w-full p-6 text-left space-y-4 shadow-xl border border-slate-300 bg-white rounded-2xl"
+         @click.away="cerrarModalEditarContador()">
+      
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+        <h3 class="text-sm font-bold text-slate-900">Ajustar Contador Inicial</h3>
+        <button type="button" @click="cerrarModalEditarContador()" class="text-slate-400 hover:text-slate-700">
+          <svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-500">Establezca el próximo número de turno que se entregará en ventanilla.</p>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Próximo turno:</label>
+        <input type="number" min="1" max="9999"
+               x-model="nuevoNumeroInput"
+               @keydown.enter="guardarNuevoNumeroContador()"
+               class="w-full h-12 text-center text-2xl font-mono-num font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:outline-none">
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" @click="cerrarModalEditarContador()"
+                class="h-10 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+          Cancelar
+        </button>
+        <button type="button" @click="guardarNuevoNumeroContador()"
+                class="h-10 rounded-xl bg-blue-700 hover:bg-blue-800 text-xs font-bold text-white shadow-xs cursor-pointer">
+          Establecer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 7. NOTIFICACIÓN TOAST FLOTANTE ── -->
+  <div x-show="toast.visible" x-cloak
+       class="fixed bottom-6 inset-x-4 max-w-sm mx-auto z-50 p-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center justify-between gap-2 animate-fade-in transition-all"
+       :class="{
+         'bg-slate-900 text-white border-slate-800': toast.tipo === 'info',
+         'bg-emerald-700 text-white border-emerald-800': toast.tipo === 'success',
+         'bg-rose-700 text-white border-rose-800': toast.tipo === 'error',
+         'bg-amber-600 text-white border-amber-700': toast.tipo === 'warning'
+       }">
+    <span x-text="toast.mensaje"></span>
+    <button type="button" @click="toast.visible = false" class="text-white/80 hover:text-white">
+      <svg class="w-3.5 h-3.5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+    </button>
+  </div>
+
+  <!-- ── 8. ÁREA DE IMPRESIÓN EXCLUSIVA PARA EL SISTEMA (@media print) ── -->
+  <div class="ticket-print-area" aria-hidden="true">
+    <div style="font-size: 13pt; font-weight: bold; text-transform: uppercase;">Centro Tecnológico</div>
+    <div style="font-size: 11pt; font-weight: bold; margin-bottom: 4px;">Ricardo Morales Avilés</div>
+    <div style="border-top: 1px dashed #000; margin: 4px 0;"></div>
+    <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase;">TURNO DE ATENCIÓN</div>
+    <div id="print-ticket-numero" style="font-size: 32pt; font-weight: 900; margin: 8px 0; font-family: monospace;">#001</div>
+    <div style="border-top: 1px dashed #000; margin: 4px 0;"></div>
+    <div id="print-ticket-fecha" style="font-size: 8pt; margin-top: 4px;"></div>
+    <div style="font-size: 8pt; margin-top: 2px;">Conserve este comprobante</div>
+    <div style="height: 15mm;"></div>
+  </div>
+
+  <!-- Scripts modulares -->
+  <script type="module" src="/js/pages/impresor.js"></script>
+  <script defer src="/vendor/alpine-3.13.3.min.js"></script>
+</body>
+</html>
