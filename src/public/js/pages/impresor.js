@@ -382,11 +382,39 @@ document.addEventListener('alpine:init', () => {
     },
 
     async copiarTexto(texto) {
+      let copiado = false;
+      // 1. Intento API moderna (funciona en HTTPS)
       try {
-        await navigator.clipboard.writeText(texto);
-        this.mostrarToast('Texto copiado al portapapeles', 'success');
-      } catch (_) {
-        this.mostrarToast('Seleccione y copie el texto manualmente', 'info');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(texto);
+          copiado = true;
+        }
+      } catch (_) {}
+
+      // 2. Fallback para HTTP en celulares (execCommand)
+      if (!copiado) {
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = texto;
+          textArea.setAttribute('readonly', '');
+          textArea.style.position = 'fixed';
+          textArea.style.top = '0';
+          textArea.style.left = '0';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          textArea.setSelectionRange(0, 99999);
+          copiado = document.execCommand('copy');
+          document.body.removeChild(textArea);
+        } catch (_) {}
+      }
+
+      if (copiado) {
+        this.mostrarToast('Copiado: ' + texto, 'success');
+      } else {
+        // 3. Fallback visual garantizado si el navegador bloquea ambos
+        window.prompt('Mantén presionado para copiar este texto:', texto);
       }
     }
   }));
