@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/css/animations.css">
   <link rel="stylesheet" href="/css/tailwind.css">
   <link rel="icon" href="data:,">
+  <link rel="modulepreload" href="/js/escpos-printer.js">
+  <link rel="modulepreload" href="/js/pages/impresor.js">
 </head>
 <body class="bg-app text-slate-800 min-h-full flex flex-col justify-between antialiased selection:bg-blue-600 selection:text-white"
       x-data="impresorView()" x-cloak>
@@ -435,8 +437,8 @@
   </div>
 
   <!-- Scripts modulares -->
-  <script defer src="/vendor/alpine-3.13.3.min.js"></script>
   <script type="module" src="/js/pages/impresor.js"></script>
+  <script defer src="/vendor/alpine-3.13.3.min.js"></script>
 </body>
 </html>
 

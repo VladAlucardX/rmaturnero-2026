@@ -16,8 +16,8 @@
 
 import { WebBluetoothThermalPrinter, construirTicketCentroTecnologico } from '../escpos-printer.js';
 
-window.impresorView = function () {
-  return {
+document.addEventListener('alpine:init', () => {
+  Alpine.data('impresorView', () => ({
     // Estado numérico
     numeroActual: 1,
     ultimoImpreso: null,
@@ -389,6 +389,6 @@ window.impresorView = function () {
         this.mostrarToast('Seleccione y copie el texto manualmente', 'info');
       }
     }
-  };
-};
+  }));
+});
 
